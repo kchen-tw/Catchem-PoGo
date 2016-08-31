@@ -433,13 +433,15 @@ namespace Catchem.Classes
                     (int)PokemonInfo.GetMaxCpAtTrainerLevel(pokemon.Item1, Level),
                     PokemonInfo.GetBaseStats(pokemon.Item1.PokemonId),
                     pokemon.Item1.Stamina,
-                    pokemon.Item1.StaminaMax);
+                    pokemon.Item1.StaminaMax,
+                    (int)PokemonInfo.GetMaxCpAtTrainerLevel(pokemon.Item1, 40),
+                    setting.CandyToEvolve);
                 PokemonList.Add(mon);
                 mon.UpdateTags(Logic);
             }
         }
 
-        public void GotNewPokemon(ulong uid, PokemonId pokemonId, int cp, double iv, PokemonFamilyId family, int candy, bool fav, bool inGym, double level, PokemonMove move1, PokemonMove move2, PokemonType type1, PokemonType type2, int maxCp, int stamina, int maxStamina)
+        public void GotNewPokemon(ulong uid, PokemonId pokemonId, int cp, double iv, PokemonFamilyId family, int candy, bool fav, bool inGym, double level, PokemonMove move1, PokemonMove move2, PokemonType type1, PokemonType type2, int maxCp, int stamina, int maxStamina, int possibleCp, int candyToEvolve)
         {
             PokemonList.Add(new PokemonUiData(
                     this,
@@ -462,7 +464,9 @@ namespace Catchem.Classes
                     maxCp,
                     PokemonInfo.GetBaseStats(pokemonId),
                     stamina,
-                    maxStamina));
+                    maxStamina,
+                    possibleCp,
+                    candyToEvolve));
             foreach (var pokemon in PokemonList.Where(x => x.Family == family))
             {
                 pokemon.Candy = candy;
@@ -581,10 +585,14 @@ namespace Catchem.Classes
                 var stopSec = 10 * 60 + _rnd.Next(60 * 5) + (int)(new [] { pokestopSec, pokemonSec, xpSec, stardustSec }).Max();
                 var stopMs = stopSec * 1000;
 
+//#if DEBUG
+//                stopMs /= 1000;
+//#endif
+
                 Session.EventDispatcher.Send(new WarnEvent
                 {
                     Message =
-                        $"Max amount of Pokemon ({PokemonsRate.ToN1()})/Pokestops ({PokestopsRate.ToN1()})/XP ({Xpph.ToN1()})/Star Dust ({StardustRate.ToN1()}) per hour reached, bot will be stoped for {(stopMs/60000).ToString("N1")} minutes"
+                        $"Max amount of Pokemon ({PokemonsRate.ToN1()})/Pokestops ({PokestopsRate.ToN1()})/XP ({Xpph.ToN1()})/Star Dust ({StardustRate.ToN1()}) per hour reached, bot will be stopped for {(stopMs/60000).ToString("N1")} minutes"
                 });
                 _realWorkSec += stopSec;
                 Stop(true);
@@ -603,12 +611,13 @@ namespace Catchem.Classes
                     Message = "Bot pause routine canceled"
                 });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 Session.EventDispatcher.Send(new WarnEvent
                 {
                     Message = "Bot pause routine failed badly"
                 });
+                Logger.Write($"[PAUSE FAIL] Error: {ex.Message}", LogLevel.Error);
             }
         }
     }

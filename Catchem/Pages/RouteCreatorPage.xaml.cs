@@ -32,6 +32,12 @@ namespace Catchem.Pages
         private List<GeoCoordinate> _buildedRoute;
         private bool _prefferMapzen;
         private bool _manualRoute;
+        private int _currentIndex = 1;
+
+        public bool StartExist
+        {
+            get { return _mapPoints.Any(x => x.IsStart); }
+        }
 
         public void SetGlobalSettings(CatchemSettings settings)
         {
@@ -106,8 +112,9 @@ namespace Catchem.Pages
                 }
             }
             _mapPoints.Add(marker);
-           RouteCreatorMap.Markers.Add(marker.Marker);
+            RouteCreatorMap.Markers.Add(marker.Marker);
             UpdateMarkerCounter();
+            CheckRouteServicePreffer();
         }
 
         private void UpdateMarkerCounter()
@@ -121,6 +128,7 @@ namespace Catchem.Pages
             rm.Marker.Clear();
             _mapPoints.Remove(rm);
             UpdateMarkerCounter();
+            CheckRouteServicePreffer();
         }
 
         private void MiSetStart_Click(object sender, RoutedEventArgs e)
@@ -152,7 +160,7 @@ namespace Catchem.Pages
         private void CreateNewMarker(PointLatLng mapPos, bool starter)
         {
             var markerShape = starter ? Properties.Resources.force_move.ToImage("Route Marker - START") :
-               Properties.Resources.wp.ToImage("Route Marker - Waypoint");
+               Properties.Resources.wp.ToImage($"Route Marker - Waypoint {_currentIndex++}");
             var marker = new GMapMarker(mapPos)
             {
                 Shape = markerShape,
@@ -208,14 +216,24 @@ namespace Catchem.Pages
                 : (botGoogle != null ? "google" : "mapzen");
         }
 
-        private async void BuildTheRoute_Click(object sender, RoutedEventArgs e)
+        private void CheckRouteServicePreffer()
         {
-            if (_mapPoints.Count < 2) return;
             if (_mapPoints.Count > 20 && !_manualRoute)
             {
                 _prefferMapzen = true;
                 PrefferMapzenOverGoogleCb.IsChecked = true;
+                PrefferMapzenOverGoogleCb.IsEnabled = false;
             }
+            else if(_mapPoints.Count <= 20 && (_manualRoute || !PrefferMapzenOverGoogleCb.IsEnabled))
+            {
+                PrefferMapzenOverGoogleCb.IsEnabled = true;
+            }
+        }
+
+        private async void BuildTheRoute_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mapPoints.Count < 2) return;
+            CheckRouteServicePreffer();
             if (_mapPoints.Count > 47 && !_manualRoute)
             {
                 MessageBox.Show(
@@ -298,6 +316,7 @@ namespace Catchem.Pages
 
         private void ClearRouteBuilder()
         {
+            _currentIndex = 1;
             _currentRoute?.Points.Clear();
             _currentRoute?.RegenerateShape(RouteCreatorMap);
             BuildingProgressBar.Value = 0;
@@ -347,6 +366,7 @@ namespace Catchem.Pages
                 CreateNewMarker(new PointLatLng(wp.Latitude, wp.Longitude), start);
                 if (start) start = false;
             }
+            RouteCreatorMap.ZoomAndCenterMarkers(null);
         }
 
         private void PrefferMapzenOverGoogleCb_Checked(object sender, RoutedEventArgs e)
