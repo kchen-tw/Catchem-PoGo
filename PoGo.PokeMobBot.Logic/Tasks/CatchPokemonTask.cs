@@ -27,7 +27,7 @@ namespace PoGo.PokeMobBot.Logic.Tasks
         public static async Task<bool> Execute(ISession session, dynamic encounter, PokemonCacheItem pokemon, CancellationToken cancellationToken,
             FortData currentFortData = null, ulong encounterId = 0)
         {
-            if (!await CheckBotStateTask.Execute(session, cancellationToken)) return false;
+            //if (!await CheckBotStateTask.Execute(session, cancellationToken)) return false;
             if (encounter is EncounterResponse && pokemon == null)
                 throw new ArgumentException("Parameter pokemon must be set, if encounter is of type EncounterResponse",
                     nameof(pokemon));
@@ -101,6 +101,10 @@ namespace PoGo.PokeMobBot.Logic.Tasks
                     normalizedRecticleSize =
                         Rng.NextInRange(session.LogicSettings.ThrowAccuracyMin, session.LogicSettings.ThrowAccuracyMax)*
                         1.85 + 0.1; // 0.1..1.95
+                    if (normalizedRecticleSize > 1.95)
+                        normalizedRecticleSize = 1.95;
+                    else if (normalizedRecticleSize < 0.1)
+                        normalizedRecticleSize = 0.1;
                     spinModifier = Rng.NextDouble() > session.LogicSettings.ThrowSpinFrequency ? 0.0 : 1.0;
                 }
                 else
@@ -108,7 +112,7 @@ namespace PoGo.PokeMobBot.Logic.Tasks
                     normalizedRecticleSize = 1.95;
                     spinModifier = 1.00;
                 }
-                                Func<ItemId, string> returnRealBallName = a =>
+                Func<ItemId, string> returnRealBallName = a =>
                 {
                     switch (a)
                     {
@@ -191,7 +195,7 @@ namespace PoGo.PokeMobBot.Logic.Tasks
                         evt.Type1 = setting.Type;
                         evt.Type2 = setting.Type2;
                         evt.Stats = setting.Stats;
-
+                        evt.CandyToEvolve = setting.CandyToEvolve;
                         PokemonData poke = encounter is EncounterResponse ? encounter.WildPokemon?.PokemonData : encounter?.PokemonData;
                         if (poke != null)
                         {
@@ -239,6 +243,8 @@ namespace PoGo.PokeMobBot.Logic.Tasks
                     evt.Move1 = pokeData.Move1;
                     evt.Move2 = pokeData.Move2;
 
+                    evt.PossibleCp = (int)PokemonInfo.GetMaxCpAtTrainerLevel(pokeData, 40);
+
                 }
                 evt.Distance = distance;
                 evt.Pokeball = pokeball;
@@ -277,7 +283,7 @@ namespace PoGo.PokeMobBot.Logic.Tasks
                 ? session.LogicSettings.UseGreatBallBelowCatchProbability/100
                 : session.LogicSettings.UseGreatBallBelowCatchProbability;
 
-            //await session.Inventory.RefreshCachedInventory();
+            await session.Inventory.RefreshCachedInventory();
             var pokeBallsCount = await session.Inventory.GetItemAmountByType(ItemId.ItemPokeBall);
             var greatBallsCount = await session.Inventory.GetItemAmountByType(ItemId.ItemGreatBall);
             var ultraBallsCount = await session.Inventory.GetItemAmountByType(ItemId.ItemUltraBall);
